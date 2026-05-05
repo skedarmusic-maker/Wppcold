@@ -419,6 +419,19 @@ input:focus, textarea:focus {
   100% { transform: rotate(360deg); }
 }
 
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+
 /* Google Search Styles */
 .search-grid {
   display: grid;
@@ -504,6 +517,10 @@ input:focus, textarea:focus {
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   cursor: not-allowed;
+}
+
+.apify-search {
+  grid-template-columns: 1fr auto;
 }
 
 @media (max-width: 768px) {

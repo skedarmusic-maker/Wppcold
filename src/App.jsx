@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
-import { MessageSquare, Users, FileSpreadsheet, Send, CheckCircle, Trash2, Plus, X, Upload, Search, MapPin, Download } from 'lucide-react';
+import { MessageSquare, Users, FileSpreadsheet, Send, CheckCircle, Trash2, Plus, X, Upload, Search, MapPin, Download, Rocket, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 
@@ -24,11 +24,14 @@ function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // Google Search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [locationQuery, setLocationQuery] = useState('');
-  const [googleResults, setGoogleResults] = useState([]);
-  const [isSearchingGoogle, setIsSearchingGoogle] = useState(false);
+  // Apify state
+  const [apifyQuery, setApifyQuery] = useState('');
+  const [apifyStatus, setApifyStatus] = useState('idle'); // 'idle', 'running', 'done', 'error'
+  const [apifyProgress, setApifyProgress] = useState('');
+  const [apifyResults, setApifyResults] = useState([]);
+  const [isSearchingApify, setIsSearchingApify] = useState(false);
+  const [apifyRunId, setApifyRunId] = useState(null);
+
   const googleMapsRef = useRef(null);
 
   useEffect(() => {
@@ -165,6 +168,150 @@ function App() {
 
     if (!error) {
       setGoogleResults(googleResults.map(r => ({ ...r, imported: true })));
+      fetchLeads();
+      alert(`${leadsToImport.length} leads importados!`);
+    } else {
+      alert('Erro ao importar leads.');
+    }
+  };
+
+  // --- Apify API Logic ---
+  const startApifyScrape = async () => {
+    if (!apifyQuery) {
+      alert('Preencha o termo de busca (Ex: Restaurantes em Diadema)');
+      return;
+    }
+
+    const token = import.meta.env.VITE_APIFY_TOKEN;
+    if (!token || token === 'seu_token_aqui') {
+      alert('Por favor, configure seu Apify Token no arquivo .env');
+      return;
+    }
+
+    setIsSearchingApify(true);
+    setApifyStatus('running');
+    setApifyProgress('Iniciando robô no Apify...');
+    setApifyResults([]);
+
+    try {
+      // 1. Iniciar o Actor do Google Maps Scraper
+      const runResponse = await fetch(`https://api.apify.com/v2/acts/apify~google-maps-scraper/runs?token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchQueries: [apifyQuery],
+          maxItems: 30, // Limitado para economizar créditos
+          languageCode: 'pt',
+          exportPlaceUrls: false
+        })
+      });
+
+      const runData = await runResponse.json();
+      if (!runResponse.ok) throw new Error(runData.error?.message || 'Erro ao iniciar Apify');
+
+      const runId = runData.data.id;
+      setApifyRunId(runId);
+
+      // 2. Polling para verificar status
+      pollApifyStatus(runId, token);
+    } catch (error) {
+      console.error('Erro Apify:', error);
+      alert(`Erro: ${error.message}`);
+      setApifyStatus('error');
+      setIsSearchingApify(false);
+    }
+  };
+
+  const pollApifyStatus = async (runId, token) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+        const data = await response.json();
+        
+        const status = data.data.status;
+        setApifyProgress(`Status: ${status}...`);
+
+        if (status === 'SUCCEEDED') {
+          clearInterval(interval);
+          setApifyProgress('Busca concluída! Buscando dados...');
+          fetchApifyResults(data.data.defaultDatasetId, token);
+        } else if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
+          clearInterval(interval);
+          setApifyStatus('error');
+          setIsSearchingApify(false);
+          alert('O robô do Apify parou prematuramente.');
+        }
+      } catch (error) {
+        clearInterval(interval);
+        console.error('Erro no polling:', error);
+      }
+    }, 5000); // Checa a cada 5 segundos
+  };
+
+  const fetchApifyResults = async (datasetId, token) => {
+    try {
+      const response = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}`);
+      const items = await response.json();
+
+      // Filtra conforme as regras: Nota > 3.5 e Telefone Celular
+      const filtered = items.filter(item => {
+        const score = parseFloat(item.totalScore);
+        const hasPhone = item.phone && item.phone.length > 0;
+        return score > 3.5 && hasPhone;
+      }).map(item => {
+        // Limpeza do número de telefone (regra do 9 para celular BR)
+        const digits = item.phone.replace(/\D/g, '');
+        let number = digits.startsWith('55') ? digits.substring(2) : digits;
+        const isMobile = number.length === 11 && number[2] === '9';
+
+        return {
+          id: item.placeId || Math.random().toString(),
+          name: item.title,
+          phone: isMobile ? `55${number}` : null,
+          score: item.totalScore,
+          address: item.address,
+          imported: false
+        };
+      }).filter(item => item.phone !== null);
+
+      setApifyResults(filtered);
+      setApifyStatus('done');
+      setIsSearchingApify(false);
+    } catch (error) {
+      console.error('Erro ao buscar dataset:', error);
+      setApifyStatus('error');
+      setIsSearchingApify(false);
+    }
+  };
+
+  const importApifyLead = async (lead) => {
+    const { error } = await supabase.from('leads').insert([{
+      restaurant_name: lead.name,
+      phone: lead.phone,
+      status: 'pendente'
+    }]);
+
+    if (!error) {
+      setApifyResults(apifyResults.map(r => r.id === lead.id ? { ...r, imported: true } : r));
+      fetchLeads();
+    } else {
+      alert('Erro ao importar lead.');
+    }
+  };
+
+  const importAllApifyLeads = async () => {
+    const leadsToImport = apifyResults.filter(r => !r.imported).map(r => ({
+      restaurant_name: r.name,
+      phone: r.phone,
+      status: 'pendente'
+    }));
+
+    if (leadsToImport.length === 0) return;
+
+    const { error } = await supabase.from('leads').insert(leadsToImport);
+
+    if (!error) {
+      setApifyResults(apifyResults.map(r => ({ ...r, imported: true })));
       fetchLeads();
       alert(`${leadsToImport.length} leads importados!`);
     } else {
@@ -327,9 +474,13 @@ function App() {
             <Users size={20} />
             Lista de Leads
           </li>
+          <li className={`nav-item ${activeTab === 'apify' ? 'active' : ''}`} onClick={() => setActiveTab('apify')}>
+            <Rocket size={20} />
+            Automação Apify
+          </li>
           <li className={`nav-item ${activeTab === 'google' ? 'active' : ''}`} onClick={() => setActiveTab('google')}>
             <Search size={20} />
-            Explorar Google
+            Explorar Google (Local)
           </li>
           <li className={`nav-item ${activeTab === 'templates' ? 'active' : ''}`} onClick={() => setActiveTab('templates')}>
             <FileSpreadsheet size={20} />
@@ -421,12 +572,92 @@ function App() {
           </div>
         )}
 
+        {activeTab === 'apify' && (
+          <div>
+            <div className="flex-between mb-6">
+              <div>
+                <h1 className="text-gradient">Automação Apify (Google Maps)</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>O robô vasculha o Google Maps para você, filtra os melhores e traz os WhatsApps validados.</p>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="search-grid apify-search">
+                <div className="input-with-icon">
+                  <Search size={18} className="icon" />
+                  <input 
+                    type="text" 
+                    placeholder="O que busca e onde? (Ex: Pizzarias em Diadema)" 
+                    value={apifyQuery}
+                    onChange={e => setApifyQuery(e.target.value)}
+                    disabled={isSearchingApify}
+                  />
+                </div>
+                <button 
+                  className="btn-primary" 
+                  onClick={startApifyScrape} 
+                  disabled={isSearchingApify}
+                  style={{ minWidth: '180px' }}
+                >
+                  {isSearchingApify ? (
+                    <><Loader2 className="animate-spin" size={18} /> Rodando...</>
+                  ) : (
+                    <><Rocket size={18} /> Iniciar Varredura</>
+                  )}
+                </button>
+              </div>
+              
+              {isSearchingApify && (
+                <div className="mt-4 p-4 glass" style={{ borderRadius: '8px', textAlign: 'center' }}>
+                  <p className="pulse">{apifyProgress}</p>
+                </div>
+              )}
+            </div>
+
+            {apifyResults.length > 0 && (
+              <div className="flex-between mb-4">
+                <h3>Leads Qualificados Encontrados ({apifyResults.length})</h3>
+                <button className="btn-success" onClick={importAllApifyLeads}>
+                  <Download size={18} /> Importar Todos para o Banco
+                </button>
+              </div>
+            )}
+
+            <div className="results-grid">
+              {apifyResults.map(result => (
+                <div className={`result-card ${result.imported ? 'imported' : ''}`} key={result.id}>
+                  <div className="result-info">
+                    <div className="flex-between" style={{ marginBottom: '8px' }}>
+                      <h4>{result.name}</h4>
+                      <span className="badge badge-sent">⭐ {result.score}</span>
+                    </div>
+                    <p className="result-phone">{result.phone}</p>
+                    <p className="result-address">{result.address}</p>
+                  </div>
+                  <button 
+                    className={result.imported ? "btn-disabled" : "btn-outline"} 
+                    onClick={() => !result.imported && importApifyLead(result)}
+                    disabled={result.imported}
+                  >
+                    {result.imported ? 'Importado' : 'Importar Lead'}
+                  </button>
+                </div>
+              ))}
+              {apifyStatus === 'done' && apifyResults.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  A varredura terminou, mas nenhum lead atendeu aos critérios (Nota > 3.5 e WhatsApp Celular).
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'google' && (
           <div>
             <div className="flex-between mb-6">
               <div>
-                <h1 className="text-gradient">Explorar Google Maps</h1>
-                <p style={{ color: 'var(--text-secondary)' }}>Encontre novos restaurantes diretamente no Google Maps.</p>
+                <h1 className="text-gradient">Explorar Google Maps (Nativo)</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>Busca rápida usando a sua própria chave do Google. Mais rápido, porém mais limitado em detalhes.</p>
               </div>
             </div>
 
