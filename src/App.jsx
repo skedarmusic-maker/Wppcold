@@ -186,8 +186,8 @@ function App() {
 
         const newLeads = json.map(row => {
           const keys = Object.keys(row);
-          const phoneKey = keys.find(k => k.toLowerCase().includes('contato') || k.toLowerCase().includes('telefone') || k.toLowerCase().includes('numero'));
-          const nameKey = keys.find(k => k.toLowerCase().includes('restaurante') || k.toLowerCase().includes('nome'));
+          const phoneKey = keys.find(k => k.toLowerCase().includes('contato') || k.toLowerCase().includes('telefone') || k.toLowerCase().includes('numero') || k.toLowerCase().includes('whatsapp') || k.toLowerCase().includes('phone'));
+          const nameKey = keys.find(k => k.toLowerCase().includes('restaurante') || k.toLowerCase().includes('nome') || k.toLowerCase().includes('title'));
 
           const phoneRaw = row[phoneKey] ? String(row[phoneKey]) : '';
           const phone = phoneRaw.replace(/\D/g, '');
