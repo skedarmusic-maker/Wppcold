@@ -645,7 +645,7 @@ function App() {
               ))}
               {apifyStatus === 'done' && apifyResults.length === 0 && (
                 <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                  A varredura terminou, mas nenhum lead atendeu aos critérios (Nota > 3.5 e WhatsApp Celular).
+                  A varredura terminou, mas nenhum lead atendeu aos critérios (Nota &gt; 3.5 e WhatsApp Celular).
                 </div>
               )}
             </div>
