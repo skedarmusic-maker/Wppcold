@@ -195,7 +195,7 @@ function App() {
 
     try {
       // 1. Iniciar o Actor do Google Maps Scraper
-      const runResponse = await fetch(`https://api.apify.com/v2/acts/apify~google-maps-scraper/runs?token=${token}`, {
+      const runResponse = await fetch(`https://api.apify.com/v2/acts/apify/google-maps-scraper/runs?token=${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
