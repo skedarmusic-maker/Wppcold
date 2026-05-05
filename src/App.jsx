@@ -195,12 +195,13 @@ function App() {
 
     try {
       // 1. Iniciar o Actor do Google Maps Scraper
-      const runResponse = await fetch(`https://api.apify.com/v2/acts/apify/google-maps-scraper/runs?token=${token}`, {
+      const runResponse = await fetch(`https://api.apify.com/v2/acts/nwjs7PZnc96uXZ9S0/runs?token=${token}`, {
         method: 'POST',
+        mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           searchQueries: [apifyQuery],
-          maxItems: 30, // Limitado para economizar créditos
+          maxItems: 30,
           languageCode: 'pt',
           exportPlaceUrls: false
         })
