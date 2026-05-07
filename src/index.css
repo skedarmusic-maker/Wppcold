@@ -235,6 +235,16 @@ input:focus, textarea:focus {
   transition: background 0.2s;
 }
 
+.table-header.three-cols, .table-row.three-cols {
+  grid-template-columns: 2fr 1.5fr 1fr !important;
+}
+
+.flex-gap {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 .table-row:hover {
   background: rgba(255, 255, 255, 0.02);
 }
