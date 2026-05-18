@@ -1,0 +1,192 @@
+{
+  "name": "WhatsApp Automation - Anti-Ban (Coudmsg Local)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutes": 5
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "value": "pendente"
+            }
+          ]
+        },
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "supabase-get-lead",
+      "name": "Supabase - Get Pending Lead",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [600, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_SUPABASE_CREDENTIAL_ID"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const variations = [\n  \"Bom dia\",\n  \"Olá\",\n  \"Tudo bem?\",\n  \"Opa, tudo certo?\"\n];\n\nconst bodyVariations = [\n  \"vi que vocês têm um movimento forte\",\n  \"notei que o delivery de vocês é bem ativo\",\n  \"acompanhei o trabalho de vocês\"\n];\n\nconst waitTime = Math.floor(Math.random() * (300 - 120 + 1)) + 120; // 2 a 5 minutos\n\nconst randomIntro = variations[Math.floor(Math.random() * variations.length)];\nconst randomBody = bodyVariations[Math.floor(Math.random() * bodyVariations.length)];\n\nreturn {\n  intro: randomIntro,\n  bodyText: randomBody,\n  waitTimeSeconds: waitTime,\n  phoneNumber: $node[\"Supabase - Get Pending Lead\"].json.phone.replace(/\\D/g, ''),\n  leadName: $node[\"Supabase - Get Pending Lead\"].json.restaurant_name\n};"
+      },
+      "id": "code-randomizer",
+      "name": "Randomizer & Safety",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "amount": "={{$json.waitTimeSeconds}}",
+        "unit": "seconds"
+      },
+      "id": "wait-node",
+      "name": "Wait (Anti-Ban Delay)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8080/message/sendText/coudmsg_bot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "focus_arts_evolution_2024"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{$json.phoneNumber}}"
+            },
+            {
+              "name": "text",
+              "value": "={{$json.intro}}! Com quem falo sobre a gestão de entregas da {{$json.leadName}}? {{$json.bodyText}} e gostaria de apresentar uma ferramenta que reduz o caos no balcão. O gerente estaria disponível para um teste rápido?\""
+            }
+          ]
+        }
+      },
+      "id": "evolution-api-send",
+      "name": "Evolution API - Send Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "leads",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "value": "={{$node[\"Supabase - Get Pending Lead\"].json.id}}"
+            }
+          ]
+        },
+        "updateFields": {
+          "columns": [
+            {
+              "column": "status",
+              "value": "enviado"
+            }
+          ]
+        }
+      },
+      "id": "supabase-update-status",
+      "name": "Supabase - Mark as Sent",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1400, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_SUPABASE_CREDENTIAL_ID"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Get Pending Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase - Get Pending Lead": {
+      "main": [
+        [
+          {
+            "node": "code-randomizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-randomizer": {
+      "main": [
+        [
+          {
+            "node": "wait-node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait-node": {
+      "main": [
+        [
+          {
+            "node": "evolution-api-send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "evolution-api-send": {
+      "main": [
+        [
+          {
+            "node": "supabase-update-status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
