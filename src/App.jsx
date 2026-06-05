@@ -762,7 +762,7 @@ function App() {
               <div className="loader-spinner"></div>
             ) : (
               <div className="template-grid">
-                {templates.map(template => (
+                {templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).map(template => (
                   <div className="template-card" key={template.id}>
                     <h3 style={{ fontSize: '16px', fontWeight: '600' }}>{template.name}</h3>
                     <div className="template-content">{template.content}</div>
@@ -777,9 +777,9 @@ function App() {
                     </div>
                   </div>
                 ))}
-                {templates.length === 0 && (
+                {templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).length === 0 && (
                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                    Nenhum modelo cadastrado.
+                    Nenhum modelo do Google/GMN cadastrado.
                   </div>
                 )}
               </div>
@@ -799,10 +799,10 @@ function App() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {templates.length === 0 ? (
-                <p style={{ color: 'var(--warning-color)' }}>Você precisa criar modelos de mensagem primeiro.</p>
+              {templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).length === 0 ? (
+                <p style={{ color: 'var(--warning-color)' }}>Nenhum modelo do Google/GMN disponível.</p>
               ) : (
-                templates.map(template => (
+                templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).map(template => (
                   <button
                     key={template.id}
                     className="btn-outline"
