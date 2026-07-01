@@ -762,7 +762,7 @@ function App() {
               <div className="loader-spinner"></div>
             ) : (
               <div className="template-grid">
-                {templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).map(template => (
+                {templates.filter(t => t.name.toLowerCase().includes('vestido')).map(template => (
                   <div className="template-card" key={template.id}>
                     <h3 style={{ fontSize: '16px', fontWeight: '600' }}>{template.name}</h3>
                     <div className="template-content">{template.content}</div>
@@ -777,9 +777,9 @@ function App() {
                     </div>
                   </div>
                 ))}
-                {templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).length === 0 && (
+                {templates.filter(t => t.name.toLowerCase().includes('vestido')).length === 0 && (
                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                    Nenhum modelo do Google/GMN cadastrado.
+                    Nenhum modelo de Vestidos cadastrado.
                   </div>
                 )}
               </div>
@@ -788,7 +788,7 @@ function App() {
         )}
       </div>
 
-      {/* Modals... (omitted for brevity in replacement but kept in original) */}
+      {/* Modals */}
       {isModalOpen && selectedLead && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -799,10 +799,10 @@ function App() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).length === 0 ? (
-                <p style={{ color: 'var(--warning-color)' }}>Nenhum modelo do Google/GMN disponível.</p>
+              {templates.filter(t => t.name.toLowerCase().includes('vestido')).length === 0 ? (
+                <p style={{ color: 'var(--warning-color)' }}>Nenhum modelo de Vestidos disponível.</p>
               ) : (
-                templates.filter(t => t.name.toLowerCase().includes('gmn') || t.name.toLowerCase().includes('gbp')).map(template => (
+                templates.filter(t => t.name.toLowerCase().includes('vestido')).map(template => (
                   <button
                     key={template.id}
                     className="btn-outline"
